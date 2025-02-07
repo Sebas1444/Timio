@@ -63,16 +63,16 @@ def guardar_procesado(nombre_archivo, fecha_creacion):
     with open(Procesados_id, "a") as f:
         f.write(f"{nombre_archivo},{fecha_creacion}\n")
 
-# Mover imágenes sin duplicados y comparar por fecha de creación
-def mover_id():
+# Copiar imágenes sin duplicados y comparar por fecha de creación
+def copiar_id():
     viejo_id = get_ultimo_id()
     procesados = cargar_procesados()
 
     print(f" Buscando imágenes en: {Origen_nikon}")
-    print(f" Archivos ya procesados: {list(procesados.keys())}")
+    print(f"Archivos ya procesados: {list(procesados.keys())}")
 
     for root, _, files in os.walk(Origen_nikon):
-        print(f" Explorando: {root}, Archivos encontrados: {len(files)}")
+        print(f"Explorando: {root}, Archivos encontrados: {len(files)}")
 
         for file in files:
             if file.lower().endswith(".jpg"):
@@ -81,22 +81,23 @@ def mover_id():
 
                 # Verificar si el archivo ya ha sido procesado
                 if file in procesados:
-                    # Comparar las fechas de creación (si la foto ya existe y la fecha es más antigua, no moverla)
+                    # Comparar las fechas de creación (si la foto ya existe y la fecha es más antigua, no copiarla)
                     if procesados[file] >= fecha_creacion:
-                        print(f" Duplicado encontrado (más antiguo): {file}, ignorando...")
+                        print(f"⚠️ Duplicado encontrado (más antiguo): {file}, ignorando...")
                         continue
 
-                # Si el archivo es más reciente o no existe, moverlo
+                # Si el archivo es más reciente o no existe, copiarlo
                 viejo_id += 1
                 dest_nombre = f"Arasunu_{viejo_id:03d}_{time.strftime('%Y%m%d_%H%M%S', time.localtime(fecha_creacion))}.jpg"
                 dest = os.path.join(Destino_pi, dest_nombre)
 
-                shutil.move(src, dest)
-                print(f"✅ Movido: {dest}")
+                shutil.copy2(src, dest)  # Copia manteniendo metadatos
+                print(f"✅ Copiado: {dest}")
 
                 # Guardar el archivo como procesado con su fecha de creación
                 guardar_procesado(file, fecha_creacion)
                 guardar_id(viejo_id)
 
 if __name__ == "__main__":
-    mover_id()
+    copiar_id()
+
