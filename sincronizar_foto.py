@@ -2,6 +2,7 @@ import os
 import shutil
 import time
 
+
 # Rutas de Origen y Destino
 Origen_nikon = "/home/redesiiucsa/fotos"  # Carpeta de origen
 Destino_pi = "/home/redesiiucsa/original"  # Carpeta destino
