@@ -15,109 +15,91 @@ Procesados_id = os.path.join(Contador_dir, "procesados.txt")
 os.makedirs(Destino_pi, exist_ok=True)
 os.makedirs(Contador_dir, exist_ok=True)
 
-# --- Funciones de manejo de IDs ---
 def get_ultimo_id():
     try:
         with open(Contador_id, "r") as f:
             contenido = f.read().strip()
             return int(contenido) if contenido.isdigit() else 0
     except FileNotFoundError:
+        with open(Contador_id, "w") as f:
+            f.write("0")
         return 0
 
 def guardar_id(ultimo_id):
     with open(Contador_id, "w") as f:
         f.write(str(ultimo_id))
 
-# --- Funciones de manejo de archivos procesados ---
 def cargar_procesados():
-    procesados = {}
+    procesados = set()
     try:
         with open(Procesados_id, "r") as f:
             for line in f:
                 line = line.strip()
                 if line:
-                    try:
-                        nombre, fecha_creacion = line.split(',')
-                        procesados[nombre] = fecha_creacion
-                    except ValueError:
-                        print(f"⚠ Línea malformada en {Procesados_id}: {line}, ignorando...")
+                    procesados.add(line)
     except FileNotFoundError:
         pass
     return procesados
 
-def guardar_procesados(procesados):
-    with open(Procesados_id, "w") as f:
-        for nombre, fecha in procesados.items():
-            f.write(f"{nombre},{fecha}\n")
+def guardar_procesado(identificador):
+    """Guarda el archivo procesado en tiempo real"""
+    with open(Procesados_id, "a") as f:
+        f.write(f"{identificador}\n")
 
-# --- Función para obtener metadatos EXIF ---
-def get_fechas_exif(rutas_archivos):
-    fechas = {}
-    with exiftool.ExifTool() as et:
+def get_fecha_exif(ruta_archivo):
+    try:
+        with exiftool.ExifToolHelper() as et:
+            metadata = et.get_metadata([ruta_archivo])
+            if metadata and metadata[0]:
+                d = metadata[0]
+                return d.get("EXIF:DateTimeOriginal") or d.get("File:CreateDate")
+            return None
+    except exiftool.exceptions.ExifToolExecuteError as e:
+        print(f"ExifTool Error: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
 
-      try:
-        metadata = et.get_metadata_batch(rutas_archivos)
-      except AttributeError as e:
-        print(f"Error al llamar a get_metadata_batch: {e}")
-        print(f"Probablemente pyexiftool no está instalado correctamente o no es accesible.")
-        return {} # Retornamos un diccionario vacío para que el script pueda continuar
-
-      for d in metadata:
-          if "SourceFile" in d:
-              nombre = os.path.basename(d["SourceFile"])
-              fecha = d.get("EXIF:DateTimeOriginal") or d.get("File:CreateDate")
-              if fecha:
-                  fechas[nombre] = fecha
-              else:
-                  print(f"⚠ No se encontró fecha en {nombre}, ignorando...")
-          else:
-              print(f"⚠ Archivo sin 'SourceFile' en metadatos, ignorando...")
-    return fechas
-
-# --- Función principal de copia ---
 def copiar_id():
     viejo_id = get_ultimo_id()
-    procesados = cargar_procesados()
-    nuevos_procesados = procesados.copy()
+    procesados = cargar_procesados()  # Cargar archivos ya procesados
 
     print(f"Buscando imágenes en: {Origen_nikon}")
-    print(f" Archivos ya procesados: {len(procesados)}")
+    print(f"Archivos ya procesados: {len(procesados)}")
 
     for root, _, files in os.walk(Origen_nikon):
         print(f"Explorando: {root}, Archivos encontrados: {len(files)}")
-        archivos_jpg = [os.path.join(root, f) for f in files if f.lower().endswith((".jpg", ".jpeg", ".JPG", ".JPEG"))]
-        fechas_creacion = get_fechas_exif(archivos_jpg)
 
-        for file, fecha_creacion in fechas_creacion.items():
-            if not fecha_creacion:
-                continue
+        for file in files:
+            if file.lower().endswith((".jpg", ".jpeg")):
+                src = os.path.join(root, file)
+                fecha_creacion = get_fecha_exif(src)
 
-            if file in procesados and procesados[file] == fecha_creacion:
-                print(f" {file} ya fue procesado, ignorando...")
-                continue
+                if fecha_creacion is None:
+                    print(f"No se pudo obtener la fecha de {file}, ignorando...")
+                    continue
 
-            viejo_id += 1
-            dest_nombre = f"Arasunu_{viejo_id:03d}_{fecha_creacion.replace(':', '').replace(' ', '')}.jpg"
-            dest = os.path.join(Destino_pi, dest_nombre)
+                # Usamos un identificador ÚNICO (nombre + fecha) para evitar duplicados
+                identificador = f"{file},{fecha_creacion}"
+                
+                # Verificar si ya fue procesado
+                if identificador in procesados:
+                    print(f"📌 {file} ya fue procesado con la misma fecha, ignorando...")
+                    continue
 
-            try:
-                shutil.copy2(os.path.join(root, file), dest)
-                print(f"Copiado: {dest}")
-                nuevos_procesados[file] = fecha_creacion
-            except Exception as e:
-                print(f"⚠ Error al copiar {file}: {e}")
+                # Aumentamos el ID solo si es un archivo nuevo
+                viejo_id += 1
+                dest_nombre = f"Arasunu_{viejo_id:03d}_{fecha_creacion.replace(':', '').replace(' ', '')}.jpg"
+                dest = os.path.join(Destino_pi, dest_nombre)
 
-    guardar_procesados(nuevos_procesados)
-    guardar_id(viejo_id)
+                shutil.copy2(src, dest)
+                print(f"✅ Copiado: {dest}")
 
-# --- Añadimos líneas de depuración ---
-import sys
-import os
-
-print(f"Ruta de pyexiftool (si existe): {getattr(exiftool, '__file__', 'No encontrado')}")
-print(f"PATH: {os.environ.get('PATH')}")
-print(f"PYTHONPATH: {os.environ.get('PYTHONPATH')}")
-print(f"Versión de Python: {sys.version}")
+                # Guardamos en memoria el nuevo archivo copiado
+                procesados.add(identificador)  
+                guardar_procesado(identificador)  
+                guardar_id(viejo_id)
 
 if __name__ == "__main__":
     copiar_id()
