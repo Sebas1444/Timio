@@ -1,0 +1,15 @@
+Sincronizar_Fotos.py 
+
+Sirve para sincronizar archivos jpg de una carpeta origen, copia a una carpeta destino para hacer un tipo de filtrado, utilizando metadatos con la librería exiftool 
+
+
+
+
+Para instalar exiftool en el sistema, ejecutar:
+sudo apt install libimage-exiftool-perl
+
+Para instalar exiftool en Python3
+pip3 install pyexiftool
+
+Para forzar la instalación si ocurre un error 
+pip3 install --break-system-packages pyexiftool
