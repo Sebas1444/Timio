@@ -55,7 +55,7 @@ def cargar_procesados():
 def guardar_procesado(nombre_archivo, fecha_creacion):
     with open(Procesados_id, "a") as f:
         f.write(f"{nombre_archivo},{fecha_creacion}\n")
-
+{}
 # Obtener la fecha de captura desde EXIF con exiftool
 def get_fecha_exif(ruta_archivo):
     try:
