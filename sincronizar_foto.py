@@ -85,7 +85,7 @@ def copiar_id():
                 
                 # Verificar si ya fue procesado
                 if identificador in procesados:
-                    print(f"📌 {file} ya fue procesado con la misma fecha, ignorando...")
+                    print(f" {file} ya fue procesado con la misma fecha, ignorando...")
                     continue
 
                 # Aumentamos el ID solo si es un archivo nuevo
@@ -94,7 +94,7 @@ def copiar_id():
                 dest = os.path.join(Destino_pi, dest_nombre)
 
                 shutil.copy2(src, dest)
-                print(f"✅ Copiado: {dest}")
+                print(f" Copiado: {dest}")
 
                 # Guardamos en memoria el nuevo archivo copiado
                 procesados.add(identificador)  
