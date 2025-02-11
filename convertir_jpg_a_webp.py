@@ -30,7 +30,7 @@ def procesar_imagenes(rutas):
     imagenes_existentes = obtener_imagenes_existentes(destino_folder)
     
     for archivo in os.listdir(origen_folder):
-        if archivo.lower().endswith('.jpg'):
+        if archivo.lower().endswith(('.jpg')):
             nombre_base = os.path.splitext(archivo)[0]
             archivo_origen = os.path.join(origen_folder, archivo)
             archivo_destino = os.path.join(destino_folder, f"{nombre_base}.webp")
