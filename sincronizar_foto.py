@@ -1,13 +1,14 @@
 import os
 import shutil
 import exiftool
+import time
 
 # Rutas de Origen y Destino
-Origen_nikon = "/home/redesiiucsa/fotos"
-Destino_pi = "/home/redesiiucsa/original"
+Origen_nikon = "nikon/fotos_teste"
+Destino_pi = "nikon/original"
 
 # Archivos de control
-Contador_dir = "/home/logs"
+Contador_dir = "/home/timio/nikon/logs"
 Contador_id = os.path.join(Contador_dir, "contador.txt")
 Procesados_id = os.path.join(Contador_dir, "procesados.txt")
 
@@ -42,7 +43,6 @@ def cargar_procesados():
     return procesados
 
 def guardar_procesado(identificador):
-    """Guarda el archivo procesado en tiempo real"""
     with open(Procesados_id, "a") as f:
         f.write(f"{identificador}\n")
 
@@ -62,48 +62,42 @@ def get_fecha_exif(ruta_archivo):
         return None
 
 def copiar_id():
-    viejo_id = get_ultimo_id()
-    procesados = cargar_procesados()  # Cargar archivos ya procesados
+    while True:
+        viejo_id = get_ultimo_id()
+        procesados = cargar_procesados()
 
-    print(f"Buscando imágenes en: {Origen_nikon}")
-    print(f"Archivos ya procesados: {len(procesados)}")
+        print(f"Buscando imágenes en: {Origen_nikon}")
+        print(f"Archivos ya procesados: {len(procesados)}")
 
-    for root, _, files in os.walk(Origen_nikon):
-        print(f"Explorando: {root}, Archivos encontrados: {len(files)}")
+        for root, _, files in os.walk(Origen_nikon):
+            print(f" Explorando: {root}, Archivos encontrados: {len(files)}")
 
-        for file in files:
-            if file.lower().endswith((".jpg", ".jpeg")):
-                src = os.path.join(root, file)
-                fecha_creacion = get_fecha_exif(src)
+            for file in files:
+                if file.lower().endswith((".jpg", ".jpeg")):
+                    src = os.path.join(root, file)
+                    fecha_creacion = get_fecha_exif(src)
 
-                if fecha_creacion is None:
-                    print(f"No se pudo obtener la fecha de {file}, ignorando...")
-                    continue
+                    if fecha_creacion is None:
+                        print(f" No se pudo obtener la fecha de {file}, ignorando...")
+                        continue
 
-                # Usamos un identificador ÚNICO (nombre + fecha) para evitar duplicados
-                identificador = f"{file},{fecha_creacion}"
-                
-                # Verificar si ya fue procesado
-                if identificador in procesados:
-                    print(f" {file} ya fue procesado con la misma fecha, ignorando...")
-                    continue
+                    identificador = f"{file},{fecha_creacion}"
+                    if identificador in procesados:
+                        print(f" {file} ya fue procesado con la misma fecha, ignorando...")
+                        continue
 
-                # Aumentamos el ID solo si es un archivo nuevo
-                viejo_id += 1
-                dest_nombre = f"Arasunu_{viejo_id:03d}_{fecha_creacion.replace(':', '').replace(' ', '')}.jpg"
-                dest = os.path.join(Destino_pi, dest_nombre)
+                    viejo_id += 1
+                    dest_nombre = f"Arasunu_{viejo_id:03d}_{fecha_creacion.replace(':', '').replace(' ', '')}.jpg"
+                    dest = os.path.join(Destino_pi, dest_nombre)
 
-                shutil.copy2(src, dest)
-                print(f" Copiado: {dest}")
+                    shutil.copy2(src, dest)
+                    print(f" Copiado: {dest}")
 
-                # Guardamos en memoria el nuevo archivo copiado
-                procesados.add(identificador)  
-                guardar_procesado(identificador)  
-                guardar_id(viejo_id)
+                    procesados.add(identificador)
+                    guardar_procesado(identificador)
+                    guardar_id(viejo_id)
+        
+        time.sleep(2)  # Espera 2 segundos antes de volver a verificar
 
 if __name__ == "__main__":
     copiar_id()
-
-    # Llamar al script de sincronización de fotos
-    import convertir_jpg_a_webp
-    convertir_jpg_a_webp.procesar_imagenes()
