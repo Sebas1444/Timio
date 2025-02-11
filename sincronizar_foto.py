@@ -103,3 +103,7 @@ def copiar_id():
 
 if __name__ == "__main__":
     copiar_id()
+
+    # Llamar al script de sincronización de fotos
+    import convertir_jpg_a_webp
+    convertir_jpg_a_webp.procesar_imagenes()
